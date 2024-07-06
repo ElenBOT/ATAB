@@ -1,0 +1,91 @@
+/* Set the chessboard size */
+.chessboard {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    grid-gap: 1px;
+    border: 1px solid black;
+    width: min(90vw, 90vh);
+    height: min(90vw, 90vh);
+    container-type: size;
+}
+
+/* Style the chessboard grid */
+.chessboard div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* The chessboard grid when hover on */
+.chessboard .grid:hover {
+    filter: hue-rotate(10deg) saturate(1.1) contrast(200%);
+    background-color: aqua;
+}
+
+/* The chessboard grid when click */
+.chessboard .grid:active {
+    background-color: aqua;
+    border: 0.5cqw solid #02960a;
+}
+
+/* Style the dark squares */
+.chessboard .black{
+    background-color: #ccc;
+    border-color: #ccc;
+}
+
+/* Style the light squares */
+.chessboard .white {
+    background-color: #eee;
+    border-color: #eee;
+}
+
+/* Style for when viewport width is more than height */
+@media (orientation: landscape){
+.chessboard {
+    width: 90vh;
+    height: 90vh; 
+    float: left;
+}
+}
+
+/* Style for when viewport width is less than height */
+@media (orientation: portrait){
+.chessboard {
+    width: 90vw;
+    height: 90vw; 
+}
+}
+
+/* Chess size. Relate to the grid */
+.chess-piece {
+    font-size: 9.3cqw !important;
+}
+
+/* Chess color */
+.chess-piece i.blue {color: cornflowerblue !important;}
+.chess-piece i.red {color: firebrick !important;}
+
+/* Style for the panel button */
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+button:hover {
+    background-color: #e0e0e0;
+}
+
+button:active {
+    background-color: #d0d0d0;
+}
+
+.valid-move {
+    border: 0.7cqw solid #568d64 !important;
+}
