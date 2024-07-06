@@ -42,7 +42,7 @@ def coord_to_readable(coord):
     str
         Readable board coordinate.
     """
-    return chr(ord('a') + coord[0]) + str(8 - coord[1])
+    return chr(ord("a") + coord[0]) + str(8 - coord[1])
 
 
 def readable_to_coord(readable_coord):
@@ -59,7 +59,7 @@ def readable_to_coord(readable_coord):
     tuple of int
         A tuple representing board coordinates (x, y).
     """
-    return ord(readable_coord[0]) - ord('a'), 8 - int(readable_coord[1])
+    return ord(readable_coord[0]) - ord("a"), 8 - int(readable_coord[1])
 
 
 class Board:
@@ -80,21 +80,21 @@ class Board:
         """
         Initialize the chess board.
         """
-        self.board = np.full((8, 8), 'n', dtype='U2')
+        self.board = np.full((8, 8), "n", dtype="U2")
         starting_positions = {
-            'a': [(1, 0), (6, 0)],  # assassin
-            's': [(2, 0), (5, 0)],  # sniper
-            'd': [(2, 1), (5, 1)],  # warrior
-            'w': [(0, 1), (1, 1), (3, 1), (4, 1), (6, 1), (7, 1)],  # defender
+            "a": [(1, 0), (6, 0)],  # assassin
+            "s": [(2, 0), (5, 0)],  # sniper
+            "d": [(2, 1), (5, 1)],  # warrior
+            "w": [(0, 1), (1, 1), (3, 1), (4, 1), (6, 1), (7, 1)],  # defender
         }
         # Set initial positions for player 0
         for piece_code in starting_positions:
             for pos in starting_positions[piece_code]:
-                self.board[pos] = f'{piece_code}0'
+                self.board[pos] = f"{piece_code}0"
         # Set initial positions for player 1
         for piece_code in starting_positions:
             for pos in starting_positions[piece_code]:
-                self.board[pos[0], 7 - pos[1]] = f'{piece_code}1'
+                self.board[pos[0], 7 - pos[1]] = f"{piece_code}1"
         self.current_turn = 0  # Set initial turn to player 0
         self.move_log = []  # Initialize move history
 
@@ -120,14 +120,14 @@ class Board:
                 A boolean array indicating valid moves.
         """
         movement = {
-            'a0': np.array([[1, 0, 1], [0, 0, 0], [1, 0, 1]], dtype=bool),
-            's0': np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]], dtype=bool),
-            'w0': np.array([[0, 0, 0], [0, 0, 0], [1, 1, 1]], dtype=bool),
-            'd0': np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]], dtype=bool),
-            'a1': np.array([[1, 0, 1], [0, 0, 0], [1, 0, 1]], dtype=bool),
-            's1': np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]], dtype=bool),
-            'w1': np.array([[1, 1, 1], [0, 0, 0], [0, 0, 0]], dtype=bool),
-            'd1': np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]], dtype=bool),
+            "a0": np.array([[1, 0, 1], [0, 0, 0], [1, 0, 1]], dtype=bool),
+            "s0": np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]], dtype=bool),
+            "w0": np.array([[0, 0, 0], [0, 0, 0], [1, 1, 1]], dtype=bool),
+            "d0": np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]], dtype=bool),
+            "a1": np.array([[1, 0, 1], [0, 0, 0], [1, 0, 1]], dtype=bool),
+            "s1": np.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]], dtype=bool),
+            "w1": np.array([[1, 1, 1], [0, 0, 0], [0, 0, 0]], dtype=bool),
+            "d1": np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]], dtype=bool),
         }
         directions = {
             (0, 0): (-1, -1),  # Left Up
@@ -140,12 +140,14 @@ class Board:
             (2, 2): (+1, +1),  # Right Down
         }
 
-        def check_swap(piece):
+        def check_swap(selected_piece, target_piece):
             """Check if the piece can be swaps."""
-            return piece[0] in ['s', 'a']
+            return (selected_piece[0] in ["s", "a"]) and (
+                selected_piece != target_piece
+            )
 
         piece_exists = (
-            self.board != 'n'
+            self.board != "n"
         )  # Boolean array indicating if a piece exists at each position
         legal_moves = np.zeros((8, 8), dtype=bool)  # Initialize legal moves array
         selected_piece = self.board[coord]  # Get the piece at the given position
@@ -159,7 +161,7 @@ class Board:
 
         # Determine maximum move length based on piece type
         # Assassins and snipers can move up to 7 spaces away; warriors and defenders can move 1 step away
-        if selected_piece[0] in ('w', 'd'):
+        if selected_piece[0] in ("w", "d"):
             max_length = 1
         else:
             max_length = 7
@@ -186,7 +188,7 @@ class Board:
                             self.current_turn
                         ):  # Check if the piece belongs to the current player
                             if check_swap(
-                                selected_piece
+                                selected_piece, self.board[row, col]
                             ):  # Check if the piece can swap
                                 legal_moves[row, col] = True
                         else:
@@ -208,7 +210,7 @@ class Board:
                     if piece_exists[row, col]:
                         if self.board[row, col][1] == str(self.current_turn):
                             # check piece level
-                            if check_swap(selected_piece):
+                            if check_swap(selected_piece, self.board[row, col]):
                                 legal_moves[row, col] = True
                         break
                     else:
@@ -256,31 +258,31 @@ class Board:
             True if the current player has won the game after this move, False otherwise.
         """
         # Check if the start position has the player piece, and end position is valid
-        if self.board[start_position] == 'n':
+        if self.board[start_position] == "n":
             return False, False
         if not self.get_piece_valid_moves(start_position)[1][end_position]:
             return False, False
-        
+
         selected_piece = self.board[start_position]
         target_piece = self.board[end_position]
         self.move_log.append(
             (start_position, end_position, selected_piece, target_piece)
         )
         # Move the piece
-        if target_piece == 'n':
+        if target_piece == "n":
             self.board[end_position] = selected_piece
-            self.board[start_position] = 'n'
+            self.board[start_position] = "n"
         elif target_piece[1] == str(self.current_turn):
             self.board[end_position] = selected_piece
             self.board[start_position] = target_piece
         else:
             self.board[end_position] = selected_piece
-            self.board[start_position] = 'n'
+            self.board[start_position] = "n"
 
         is_win = self.check_is_win(self.current_turn)
         self.current_turn = 1 - self.current_turn  # Switch the turn
         return True, is_win
-    
+
     def check_is_win(self, player):
         """
         Check if the specified player has won the game.
@@ -301,7 +303,7 @@ class Board:
             top_line = 0
         for i in range(8):
             piece = self.board[i, top_line]
-            if piece != 'n':
+            if piece != "n":
                 if piece[1] == str(player):
                     counts += 1
                 if counts == 2:
@@ -330,16 +332,16 @@ class Board:
         """
         Print the current state of the board.
         """
-        print('|  a |  b |  c |  d |  e |  f |  g |  h |')
-        print('=' * 44)
+        print("|  a |  b |  c |  d |  e |  f |  g |  h |")
+        print("=" * 44)
         for row in range(8):
-            print('| ', end='')
+            print("| ", end="")
             for col in range(8):
                 piece = self.board[col, row]
-                if piece == 'n':
-                    print('..', end='')
+                if piece == "n":
+                    print("..", end="")
                 else:
-                    print(piece, end='')
-                print(' | ', end='')
+                    print(piece, end="")
+                print(" | ", end="")
             print(8 - row)
-            print('-' * 44)
+            print("-" * 44)
