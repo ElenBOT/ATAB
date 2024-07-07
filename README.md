@@ -19,9 +19,13 @@ Changed
 
 ### 2024-07-07
 
+Added
+* Add log download button for web ui.
+
 Changed
 * Change quote.
 * Add comment and description to `script.js`.
+* Updated panel layout for better organization.
 
 Bugfix
 * Fixed same type of piece can change.
