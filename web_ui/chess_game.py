@@ -209,7 +209,7 @@ def handle_move_piece():
 @app.route("/")
 def index():
     """Serve the index page."""
-    return render_template("index.html")
+    return render_template("index1.html")
 
 
 @app.route("/download_log")

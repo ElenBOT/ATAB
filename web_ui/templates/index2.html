@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chessboard</title>
+    <!-- <link href="static/assets/fontawesome/css/regular.min.css" rel="stylesheet" /> -->
+    <link href="static/assets/fontawesome/css/all.min.css" rel="stylesheet" />
+    <link href="static/style2.css" rel="stylesheet">
+</head>
+<body>
+    <div>
+        <div class="chessboard" id="chessboard">
+            <!-- Chessboard squares create area -->
+        </div>
+        <div class="panel">
+            <label for="file-input" class="file-input">Game log Upload</label>
+            <input type="file" id="file-input">
+            <button id="reset-button"><i class="fa-solid fa-rotate-left"></i></button>
+            <button id="play-button"><i class="fa-solid fa-play"></i></button>
+            <button id="pause-button"><i class="fa-solid fa-pause"></i></button>
+            <button id="forward-button"><i class="fa-solid fa-forward"></i></button>
+            <button id="backward-button"><i class="fa-solid fa-backward"></i></button>
+            <label id="speed-range-label" for="speed-range">Speed: 20</label>
+            <input type="range" id="speed-range" min="8" max="200" value="20" step="4">
+        </div>
+    </div>
+    <script src="static/script2.js"></script>
+</body>
+</html>

@@ -29,3 +29,11 @@ Changed
 
 Bugfix
 * Fixed same type of piece can change.
+
+### 2024-07-08
+
+Added
+* Add function of replay.
+
+Changed
+* Change the chess game dependencies name in web_ui.
