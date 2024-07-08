@@ -46,7 +46,15 @@
 .chessboard {
     width: 90vh;
     height: 90vh; 
-    float: left;
+    /* float: left; */
+}
+.panel {
+    flex-direction: column;
+    height: min(90vw, 90vh);
+    margin: 0px 5px;
+}
+div:has(.chessboard) {
+    flex-direction: row;
 }
 }
 
@@ -55,6 +63,14 @@
 .chessboard {
     width: 90vw;
     height: 90vw; 
+}
+.panel {
+    flex-direction: row;
+    width: min(90vw, 90vh);
+    margin: 5px 0px;
+}
+div:has(.chessboard) {
+    flex-direction: column;
 }
 }
 
@@ -76,6 +92,7 @@ button {
     border-radius: 5px;
     background-color: #fff;
     transition: background-color 0.3s, border-color 0.3s;
+    margin: 5px 5px;
 }
 
 button:hover {
@@ -86,6 +103,21 @@ button:active {
     background-color: #d0d0d0;
 }
 
+/* Valid moves highlight style */
 .valid-move {
     border: 0.7cqw solid #568d64 !important;
+}
+
+/* Style the panel */
+.panel {
+    display: flex;
+    /* justify-content: center; */
+    background-color: #fff;
+    border: 2px dotted #666;
+    border-radius: 10px;
+}
+
+/* The chessboard and panel position */
+div:has(.chessboard) {
+    display: flex;
 }

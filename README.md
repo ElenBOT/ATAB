@@ -19,9 +19,21 @@ Changed
 
 ### 2024-07-07
 
+Added
+* Add log download button for web ui.
+
 Changed
 * Change quote.
 * Add comment and description to `script.js`.
+* Updated panel layout for better organization.
 
 Bugfix
 * Fixed same type of piece can change.
+
+### 2024-07-08
+
+Added
+* Add function of replay.
+
+Changed
+* Change the chess game dependencies name in web_ui.

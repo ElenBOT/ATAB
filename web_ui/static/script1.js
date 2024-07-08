@@ -103,6 +103,13 @@ document.getElementById('undo-button').addEventListener('click', () => {
     });
 });
 
+/**
+ * Event listener for the log download button.
+ */
+document.getElementById('download-log').addEventListener('click', function () {
+  window.location.href = '/download_log';
+});
+
 let selectedPiecePosition = null;
 
 /**

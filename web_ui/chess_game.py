@@ -1,9 +1,11 @@
-import sys
+import json
 import os
-import webbrowser
+import sys
 import threading
+import webbrowser
+from datetime import datetime
 
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, Response, jsonify, render_template, request
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import game
@@ -71,6 +73,78 @@ def format_valid_moves_response(valid, valid_moves, message):
     }
 
 
+def log_format():
+    metadata = {
+        "description": "Chess game log",
+        "data_format": {
+            "name": "game_log",
+            "type": "array",
+            "description": "An array of game log entries",
+            "value": {
+                "name": "log_entry",
+                "type": "array",
+                "description": "A movement, each entry is a list of 4 items.",
+                "value": [
+                    {
+                        "name": "start_position",
+                        "type": "string",
+                        "description": "Starting position of the piece on the board in chess notation (e.g., a1)",
+                    },
+                    {
+                        "name": "end_position",
+                        "type": "string",
+                        "description": "Ending position of the piece on the board in chess notation (e.g., a1)",
+                    },
+                    {
+                        "name": "selected_piece",
+                        "type": "string",
+                        "description": (
+                            "Type of the piece being moved, formatted as 'type_player'.\n"
+                            "Type values:\n"
+                            "  'a' - assassin\n"
+                            "  'w' - warrior\n"
+                            "  's' - sniper\n"
+                            "  'd' - defender\n"
+                            "Player values:\n"
+                            "  '0' - Player 1\n"
+                            "  '1' - Player 2\n"
+                            "Example: 'a0' represents a Bishop of Player 1"
+                        ),
+                    },
+                    {
+                        "name": "target_piece",
+                        "type": "string",
+                        "description": (
+                            "Type of the piece at the target position, formatted as 'type_player' or 'n' if no piece.\n"
+                            "Type values:\n"
+                            "  'a' - assassin\n"
+                            "  'w' - warrior\n"
+                            "  's' - sniper\n"
+                            "  'd' - defender\n"
+                            "Player values:\n"
+                            "  '0' - Player 1\n"
+                            "  '1' - Player 2\n"
+                            "Example: 's1' represents a Rook of Player 2, 'n' represents an empty square"
+                        ),
+                    },
+                ],
+            },
+        },
+    }
+    global board
+    game_log = []
+    for start_position, end_position, selected_piece, target_piece in board.move_log:
+        game_log.append(
+            (
+                game.coord_to_readable(start_position),
+                game.coord_to_readable(end_position),
+                selected_piece,
+                target_piece,
+            )
+        )
+    return {"meta": metadata, "game_log": game_log}
+
+
 @app.route("/session", methods=["POST"])
 def connect_session():
     """
@@ -135,7 +209,17 @@ def handle_move_piece():
 @app.route("/")
 def index():
     """Serve the index page."""
-    return render_template("index.html")
+    return render_template("index1.html")
+
+
+@app.route("/download_log")
+def download_log():
+    json_string = json.dumps(log_format(), separators=(",", ":"))
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"game_log_{timestamp}.json"
+    response = Response(json_string, mimetype="application/json")
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
 
 
 # @app.after_request
@@ -155,4 +239,4 @@ def open_browser():
 
 if __name__ == "__main__":
     threading.Timer(1, open_browser).start()
-    app.run()
+    app.run(port=5000)
