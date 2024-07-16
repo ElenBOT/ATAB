@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chessboard</title>
+    <!-- <link href="static/assets/fontawesome/css/regular.min.css" rel="stylesheet" /> -->
+    <link href="static/assets/fontawesome/css/all.min.css" rel="stylesheet" />
+    <link href="static/style3.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+    <div id="login-box" class="login-box">
+        <div class="login-box-content">
+            <form id="login-form">
+                <label class="password-label">Password: <input type="password" id="password" required></label>
+                <input type="submit" value="Login">
+            </form>
+        </div>
+    </div>
+    <div id="chess-game" class="blur">
+        <div class="chessboard" id="chessboard">
+            <!-- Chessboard squares create area -->
+        </div>
+        <div class="panel">
+            <button id="new-game-button">New Game</button>
+            <button id="undo-button">Undo</button>
+            <button id="download-log">Download Log</button>
+        </div>
+    </div>
+    <script src="static/script3.js"></script>
+</body>
+</html>
