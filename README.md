@@ -37,3 +37,8 @@ Added
 
 Changed
 * Change the chess game dependencies name in web_ui.
+
+### 2024-07-16
+
+Changed
+* Change `Board.check_is_win` return in game.py.
