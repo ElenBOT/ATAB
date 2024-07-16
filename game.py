@@ -254,14 +254,14 @@ class Board:
         -------
         bool
             True if the move is valid and made, False otherwise.
-        bool
-            True if the current player has won the game after this move, False otherwise.
+        int or None
+            The player number (0 or 1) if the current player has won the game after this move, None otherwise.
         """
         # Check if the start position has the player piece, and end position is valid
         if self.board[start_position] == "n":
-            return False, False
+            return False, None
         if not self.get_piece_valid_moves(start_position)[1][end_position]:
-            return False, False
+            return False, None
 
         selected_piece = self.board[start_position]
         target_piece = self.board[end_position]
@@ -279,22 +279,23 @@ class Board:
             self.board[end_position] = selected_piece
             self.board[start_position] = "n"
 
-        is_win = self.check_is_win(self.current_turn)
+        is_win, win_player = self.check_is_win(self.current_turn)
         self.current_turn = 1 - self.current_turn  # Switch the turn
-        return True, is_win
+        return True, win_player
 
     def check_is_win(self, player):
         """
         Check if the specified player has won the game.
 
         A player wins if they have at least two pieces on the opponent's bottom line.
-        The top line for player 0 is row 7, and for player 1, it is row 0.
+        The bottom line for player 0 is row 7, and for player 1, it is row 0.
 
         Args:
             player (int): The player to check for a win condition. 0 or 1.
 
         Returns:
-            bool: True if the player has won, False otherwise.
+            tuple: A tuple containing a boolean and the player number.
+                (True, player) if the player has won, (False, None) otherwise.
         """
         counts = 0
         if player == 0:
@@ -307,8 +308,8 @@ class Board:
                 if piece[1] == str(player):
                     counts += 1
                 if counts == 2:
-                    return True
-        return False
+                    return True, player
+        return False, None
 
     def undo(self):
         """

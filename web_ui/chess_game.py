@@ -193,11 +193,12 @@ def handle_move_piece():
     """Handle moving a piece to a new position and return the updated board state."""
     data = request.json
     global board
-    success, is_win = board.make_move(
+    success, win_player = board.make_move(
         tuple(data["selected_pos"][::-1]), tuple(data["target_pos"][::-1])
     )
+    is_win = win_player is not None
     if is_win:
-        if board.current_turn == 1:
+        if win_player == 0:
             win_msg = "Blue Win!"
         else:
             win_msg = "Red Win!"
