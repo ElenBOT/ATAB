@@ -76,6 +76,28 @@ function updateBoard(piecePositions) {
   });
 }
 
+/**
+ * Check if a previous login exists
+ */
+function checkPreviousLogin() {
+  fetch('/check-login', {
+    method: 'GET'
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Successful login
+        token = data.token;
+        connectSocket(token);
+        initializeSession();
+        document.getElementById('login-box').style.display = 'none';
+        document.getElementById('chess-game').classList.remove('blur');
+      } else {
+        // Not login yet
+      }
+    });
+}
+
 // Event listener for the login form submission
 document.getElementById('login-form').addEventListener('submit', function (event) {
   event.preventDefault();
@@ -119,7 +141,7 @@ function connectSocket(token) {
   socket.on('connect', () => {
     console.log('Connected to Socket.IO server with token.');
     // Send session ID to server after successful connection
-    fetch('/send_sid', {
+    fetch('/send-sid', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -296,3 +318,4 @@ function performIfReady(action) {
 
 // Initial Execution
 initializeBoard();
+checkPreviousLogin();

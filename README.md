@@ -6,6 +6,19 @@
 /game.py  # The core of the game
 ```
 
+## Web UI
+```shell
+# replay
+flask --app web_ui/replay run
+
+# Local
+flask --app web_ui/chess_game run
+
+# Online
+flask --app web_ui/chess_game_online run --host=0.0.0.0 --cert=adhoc 
+flask --app web_ui/chess_game_online run --host=0.0.0.0 --cert=CERT_PATH --key=KEY_PATH
+```
+
 ## Change log
 
 ### 2024-07-06
@@ -42,3 +55,9 @@ Changed
 
 Changed
 * Change `Board.check_is_win` return in game.py.
+
+### 2024-07-17
+
+Added
+* Add online mode for the game, base on network connection.
+* Add `requirements.txt`.

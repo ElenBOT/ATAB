@@ -10,7 +10,7 @@ from datetime import datetime
 
 import numpy as np
 from flask import Flask, Response, abort, jsonify, render_template, request, session
-from flask_socketio import ConnectionRefusedError, SocketIO
+from flask_socketio import ConnectionRefusedError, SocketIO, join_room
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import game
@@ -19,7 +19,7 @@ app = Flask(__name__)
 socketio = SocketIO(app)
 app.secret_key = os.urandom(24)
 board = None
-player_sid = {}
+player_sid = [set(), set()]
 
 
 class Authentication:
@@ -200,15 +200,27 @@ def login():
     password = data["password"]
     if auth.verify_password(password, auth.user_passwords["player1"]):
         session["player"] = 0
+        session["login"] = True
         return jsonify(success=True, token=auth.user_token["player1"])
     elif auth.verify_password(password, auth.user_passwords["player2"]):
         session["player"] = 1
+        session["login"] = True
         return jsonify(success=True, token=auth.user_token["player2"])
     else:
         return jsonify(success=False, message="Wrong password.")
 
 
-@app.route("/send_sid", methods=["POST"])
+@app.route("/check-login", methods=["GET"])
+def check_login():
+    if not session.get("login"):
+        return jsonify(success=False)
+    if session["player"] == 0:
+        return jsonify(success=True, token=auth.user_token["player1"])
+    else:
+        return jsonify(success=True, token=auth.user_token["player2"])
+
+
+@app.route("/send-sid", methods=["POST"])
 def get_sid():
     """
     Route to receive and store Socket.IO session ID and associate it with player.
@@ -216,8 +228,9 @@ def get_sid():
     data = request.json
     sid = data["sid"]
     session["sid"] = sid
-    player_sid[session["player"]] = sid
-    if len(player_sid) == 2:
+    player_sid[session["player"]].add(sid)
+    join_room(session["player"], sid, '/')
+    if (len(player_sid[0]) >= 1) and (len(player_sid[1]) >=1):
         socketio.emit("player-ready", True)
     return "", 204
 
@@ -290,9 +303,10 @@ def handle_move_piece(data):
         selected_pos = tuple(data["selected_pos"][::-1])
         target_pos = tuple(data["target_pos"][::-1])
     global board
-    success, is_win = board.make_move(selected_pos, target_pos)
+    success, win_player = board.make_move(selected_pos, target_pos)
+    is_win = win_player is not None
     if is_win:
-        if board.current_turn == 1:
+        if win_player == 0:
             win_msg = "Blue Win!"
         else:
             win_msg = "Red Win!"
@@ -341,12 +355,12 @@ def update_board(is_win=False, win_msg=None):
     socketio.emit(
         "board-update",
         format_board_response(serialize_board(0), is_win, win_msg),
-        to=player_sid[0],
+        to=0,
     )
     socketio.emit(
         "board-update",
         format_board_response(serialize_board(1), is_win, win_msg),
-        to=player_sid[1],
+        to=1,
     )
 
 
@@ -402,9 +416,11 @@ def format_valid_moves_response(valid, valid_moves, message):
 
 def open_browser():
     """Open the web browser to the chess game."""
-    webbrowser.open_new("http://127.0.0.1:5000/")
+    webbrowser.open_new("https://127.0.0.1:5000/")
 
 
 if __name__ == "__main__":
     threading.Timer(1, open_browser).start()
-    socketio.run(app, port=5000)
+    socketio.run(app, host="0.0.0.0", port=5000, ssl_context='adhoc')
+    # socketio.run(app, host="0.0.0.0", port=5000, ssl_context=("cert.pem", "key.pem"))
+    # socketio.run(app, host="0.0.0.0", port=5000, ssl_context=("cert.crt", "cert-key.key"))
