@@ -96,6 +96,8 @@ class Board:
             for pos in starting_positions[piece_code]:
                 self.board[pos[0], 7 - pos[1]] = f"{piece_code}1"
         self.current_turn = 0  # Set initial turn to player 0
+        self.is_win = False  # Indicates whether the game has been won
+        self.win_player = None  # The player number (0 or 1) who has won the game
         self.move_log = []  # Initialize move history
 
     def get_piece_valid_moves(self, coord):
@@ -258,6 +260,8 @@ class Board:
             The player number (0 or 1) if the current player has won the game after this move, None otherwise.
         """
         # Check if the start position has the player piece, and end position is valid
+        if self.is_win:
+            return False, None
         if self.board[start_position] == "n":
             return False, None
         if not self.get_piece_valid_moves(start_position)[1][end_position]:
@@ -265,23 +269,26 @@ class Board:
 
         selected_piece = self.board[start_position]
         target_piece = self.board[end_position]
-        self.move_log.append(
-            (start_position, end_position, selected_piece, target_piece)
-        )
         # Move the piece
         if target_piece == "n":
+            action_type = "move"
             self.board[end_position] = selected_piece
             self.board[start_position] = "n"
         elif target_piece[1] == str(self.current_turn):
+            action_type = "swap"
             self.board[end_position] = selected_piece
             self.board[start_position] = target_piece
         else:
+            action_type = "capture"
             self.board[end_position] = selected_piece
             self.board[start_position] = "n"
 
-        is_win, win_player = self.check_is_win(self.current_turn)
+        self.move_log.append(
+            (start_position, end_position, selected_piece, target_piece, action_type)
+        )
+        self.is_win, self.win_player = self.check_is_win(self.current_turn)
         self.current_turn = 1 - self.current_turn  # Switch the turn
-        return True, win_player
+        return True, self.win_player
 
     def check_is_win(self, player):
         """
@@ -320,14 +327,15 @@ class Board:
         bool
             True if the last move was successfully undone, False if there are no moves to undo.
         """
-        if len(self.move_log) != 0:
-            self.current_turn = 1 - self.current_turn
-            start_position, end_position, piece, target_piece = self.move_log.pop()
-            self.board[start_position] = piece
-            self.board[end_position] = target_piece
-            return True
-        else:
+        if len(self.move_log) == 0:
             return False
+        
+        self.current_turn = 1 - self.current_turn
+        start_position, end_position, piece, target_piece, _ = self.move_log.pop()
+        self.board[start_position] = piece
+        self.board[end_position] = target_piece
+        self.is_win, self.win_player = False, None
+        return True
 
     def print_board(self):
         """

@@ -61,3 +61,11 @@ Changed
 Added
 * Add online mode for the game, base on network connection.
 * Add `requirements.txt`.
+
+### 2024-07-19
+
+Changed
+* Add final state in game log.
+* Change game log meta format.
+* Add type of action taken by the piece in game log.
+* Add win status in `game.py`

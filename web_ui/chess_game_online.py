@@ -101,74 +101,111 @@ def log_format():
     Formats the game log into a structured JSON format for download.
     """
     metadata = {
-        "description": "Chess game log",
+        "title": "Chess Game Log",
+        "description": "Representing the game log of a chess game, including move logs and final game state.",
         "data_format": {
-            "name": "game_log",
-            "type": "array",
-            "description": "An array of game log entries",
-            "value": {
-                "name": "log_entry",
+            "game_log": {
                 "type": "array",
-                "description": "A movement, each entry is a list of 4 items.",
-                "value": [
-                    {
-                        "name": "start_position",
-                        "type": "string",
-                        "description": "Starting position of the piece on the board in chess notation (e.g., a1)",
+                "items": {
+                    "type": "array",
+                    "items": [
+                        {
+                            "type": "string",
+                            "description": "Starting position of the piece on the board in chess notation (e.g., a1)",
+                        },
+                        {
+                            "type": "string",
+                            "description": "Ending position of the piece on the board in chess notation (e.g., a1)",
+                        },
+                        {
+                            "type": "string",
+                            "description": (
+                                "Type of the piece being moved, formatted as 'type_player'.\n"
+                                "Type values:\n"
+                                "  'a' - assassin\n"
+                                "  'w' - warrior\n"
+                                "  's' - sniper\n"
+                                "  'd' - defender\n"
+                                "Player values:\n"
+                                "  '0' - Player 1\n"
+                                "  '1' - Player 2\n"
+                                "Example: 'a0' represents a Bishop of Player 1"
+                            ),
+                        },
+                        {
+                            "type": "string",
+                            "description": (
+                                "Type of the piece at the target position, formatted as 'type_player' or 'n' if no piece.\n"
+                                "Type values:\n"
+                                "  'a' - assassin\n"
+                                "  'w' - warrior\n"
+                                "  's' - sniper\n"
+                                "  'd' - defender\n"
+                                "Player values:\n"
+                                "  '0' - Player 1\n"
+                                "  '1' - Player 2\n"
+                                "Example: 's1' represents a Rook of Player 2, 'n' represents an empty square"
+                            ),
+                        },
+                        {
+                            "type": "string",
+                            "description": (
+                                "The type of action taken by the piece.\n"
+                                "Possible values:\n"
+                                "  'move' - The piece moved to an empty square.\n"
+                                "  'swap' - The piece swapped positions with another piece of the same player.\n"
+                                "  'capture' - The piece captured an opponent's piece."
+                            ),
+                        },
+                    ],
+                    "additionalItems": False,
+                },
+            },
+            "final_state": {
+                "type": "object",
+                "properties": {
+                    "board": {
+                        "type": "array",
+                        "description": "The final configuration of the board",
+                        "items": {"type": "array", "items": {"type": "string"}},
                     },
-                    {
-                        "name": "end_position",
-                        "type": "string",
-                        "description": "Ending position of the piece on the board in chess notation (e.g., a1)",
+                    "is_win": {
+                        "type": "boolean",
+                        "description": "Indicates if a win condition has been met",
                     },
-                    {
-                        "name": "selected_piece",
-                        "type": "string",
-                        "description": (
-                            "Type of the piece being moved, formatted as 'type_player'.\n"
-                            "Type values:\n"
-                            "  'a' - assassin\n"
-                            "  'w' - warrior\n"
-                            "  's' - sniper\n"
-                            "  'd' - defender\n"
-                            "Player values:\n"
-                            "  '0' - Player 1\n"
-                            "  '1' - Player 2\n"
-                            "Example: 'a0' represents a Bishop of Player 1"
-                        ),
+                    "win_player": {
+                        "type": ["integer", "null"],
+                        "description": "Specifies the player who won the game, if any",
                     },
-                    {
-                        "name": "target_piece",
-                        "type": "string",
-                        "description": (
-                            "Type of the piece at the target position, formatted as 'type_player' or 'n' if no piece.\n"
-                            "Type values:\n"
-                            "  'a' - assassin\n"
-                            "  'w' - warrior\n"
-                            "  's' - sniper\n"
-                            "  'd' - defender\n"
-                            "Player values:\n"
-                            "  '0' - Player 1\n"
-                            "  '1' - Player 2\n"
-                            "Example: 's1' represents a Rook of Player 2, 'n' represents an empty square"
-                        ),
-                    },
-                ],
+                },
+                "required": ["board", "is_win", "win_player"],
             },
         },
     }
     global board
     game_log = []
-    for start_position, end_position, selected_piece, target_piece in board.move_log:
+    for (
+        start_position,
+        end_position,
+        selected_piece,
+        target_piece,
+        action_type,
+    ) in board.move_log:
         game_log.append(
             (
                 game.coord_to_readable(start_position),
                 game.coord_to_readable(end_position),
                 selected_piece,
                 target_piece,
+                action_type,
             )
         )
-    return {"meta": metadata, "game_log": game_log}
+    final_state = {
+        "board": board.board.tolist(),  # Convert the numpy array to a list for JSON serialization
+        "is_win": board.is_win,
+        "win_player": board.win_player,
+    }
+    return {"meta": metadata, "game_log": game_log, "final_state": final_state}
 
 
 @app.route("/")
@@ -229,8 +266,8 @@ def get_sid():
     sid = data["sid"]
     session["sid"] = sid
     player_sid[session["player"]].add(sid)
-    join_room(session["player"], sid, '/')
-    if (len(player_sid[0]) >= 1) and (len(player_sid[1]) >=1):
+    join_room(session["player"], sid, "/")
+    if (len(player_sid[0]) >= 1) and (len(player_sid[1]) >= 1):
         socketio.emit("player-ready", True)
     return "", 204
 
@@ -421,6 +458,6 @@ def open_browser():
 
 if __name__ == "__main__":
     threading.Timer(1, open_browser).start()
-    socketio.run(app, host="0.0.0.0", port=5000, ssl_context='adhoc')
+    socketio.run(app, host="0.0.0.0", port=5000, ssl_context="adhoc")
     # socketio.run(app, host="0.0.0.0", port=5000, ssl_context=("cert.pem", "key.pem"))
     # socketio.run(app, host="0.0.0.0", port=5000, ssl_context=("cert.crt", "cert-key.key"))
