@@ -329,13 +329,33 @@ class Board:
         """
         if len(self.move_log) == 0:
             return False
-        
+
         self.current_turn = 1 - self.current_turn
         start_position, end_position, piece, target_piece, _ = self.move_log.pop()
         self.board[start_position] = piece
         self.board[end_position] = target_piece
         self.is_win, self.win_player = False, None
         return True
+
+    @property
+    def latest_move_details(self):
+        """
+        Retrieve the details of the most recent move.
+
+        Returns
+        -------
+        tuple
+            A tuple containing:
+            - tuple of int: The starting position of the piece (row, col).
+            - tuple of int: The destination position of the piece (row, col).
+            - str: The piece that was moved.
+            - str: The piece that was at the destination before the move (or 'n' if empty).
+            - str: The type of action performed ('move', 'swap', or 'capture').
+        """
+        if self.move_log:
+            return self.move_log[-1]
+        else:
+            return None, None, None, None, None
 
     def print_board(self):
         """

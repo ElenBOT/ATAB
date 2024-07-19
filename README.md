@@ -64,6 +64,9 @@ Added
 
 ### 2024-07-19
 
+Added
+* Add animation in web_ui.
+
 Changed
 * Add final state in game log.
 * Change game log meta format.

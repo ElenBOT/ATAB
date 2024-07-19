@@ -10,7 +10,7 @@ from datetime import datetime
 
 import numpy as np
 from flask import Flask, Response, abort, jsonify, render_template, request, session
-from flask_socketio import ConnectionRefusedError, SocketIO, join_room
+from flask_socketio import ConnectionRefusedError, SocketIO, join_room, rooms
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import game
@@ -266,7 +266,11 @@ def get_sid():
     sid = data["sid"]
     session["sid"] = sid
     player_sid[session["player"]].add(sid)
-    join_room(session["player"], sid, "/")
+    join_room(str(session["player"]), sid, "/")
+    for s in player_sid[0]:
+        print(f"room: p0, sid: {s}, list of room: {rooms(s, '/')}")
+    for s in player_sid[1]:
+        print(f"room: p1, sid: {s}, list of room: {rooms(s, '/')}")
     if (len(player_sid[0]) >= 1) and (len(player_sid[1]) >= 1):
         socketio.emit("player-ready", True)
     return "", 204
@@ -341,7 +345,7 @@ def handle_move_piece(data):
         target_pos = tuple(data["target_pos"][::-1])
     global board
     success, win_player = board.make_move(selected_pos, target_pos)
-    is_win = win_player is not None
+    is_win = board.is_win
     if is_win:
         if win_player == 0:
             win_msg = "Blue Win!"
@@ -351,7 +355,7 @@ def handle_move_piece(data):
         win_msg = None
 
     if success:
-        update_board(is_win, win_msg)
+        move_piece(is_win, win_msg)
     return {"success": success}
 
 
@@ -385,19 +389,44 @@ def serialize_board(player):
     return pieces_pos
 
 
-def update_board(is_win=False, win_msg=None):
+def update_board():
     """
     Emit board update events to players with the current board state.
     """
     socketio.emit(
         "board-update",
-        format_board_response(serialize_board(0), is_win, win_msg),
-        to=0,
+        format_board_response(serialize_board(0)),
+        to='0',
     )
     socketio.emit(
         "board-update",
-        format_board_response(serialize_board(1), is_win, win_msg),
-        to=1,
+        format_board_response(serialize_board(1)),
+        to='1',
+    )
+
+
+def move_piece(is_win, win_msg):
+    """
+    Emit move piece events to players.
+    """
+    details = board.latest_move_details
+    details_1 = (
+        details[0][::-1],
+        details[1][::-1],
+    ) + details[2:]
+    details_0 = (
+        player0_coord_transform(details[0][::-1]),
+        player0_coord_transform(details[1][::-1]),
+    ) + details_1[2:]
+    socketio.emit(
+        "move-piece",
+        format_move_response(details_0, is_win, win_msg),
+        to='0',
+    )
+    socketio.emit(
+        "move-piece",
+        format_move_response(details_1, is_win, win_msg),
+        to='1',
     )
 
 
@@ -431,11 +460,19 @@ def get_valid_moves_info(coord):
         pass
 
 
-def format_board_response(piece_pos, is_win=False, win_msg=None):
-    """Format board response in JSON format."""
+def format_board_response(piece_pos):
+    """Format board details response in JSON format."""
     return {
         "type": "board",
         "piece_pos": piece_pos,
+    }
+
+
+def format_move_response(move_details, is_win, win_msg):
+    """Format move response in JSON format."""
+    return {
+        "type": "move_details",
+        "move": move_details,
         "is_win": is_win,
         "win_msg": win_msg,
     }

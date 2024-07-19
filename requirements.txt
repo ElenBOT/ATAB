@@ -9,3 +9,6 @@ flask >= 2.2.2
 
 # web_ui/chess_game_online.py
 flask_socketio >= 5.3.6
+
+# web_ui/chess_game_online.py
+cryptography

@@ -19,7 +19,7 @@
 
 /* The chessboard grid when hover on */
 .chessboard .grid:hover {
-    filter: hue-rotate(10deg) saturate(1.1) contrast(200%);
+    /* filter: hue-rotate(10deg) saturate(1.1) contrast(200%); */
     background-color: aqua;
 }
 
@@ -30,7 +30,7 @@
 }
 
 /* Style the dark squares */
-.chessboard .black{
+.chessboard .black {
     background-color: #ccc;
     border-color: #ccc;
 }
@@ -41,47 +41,19 @@
     border-color: #eee;
 }
 
-/* Style for when viewport width is more than height */
-@media (orientation: landscape){
-.chessboard {
-    width: 90vh;
-    height: 90vh; 
-    /* float: left; */
-}
-.panel {
-    flex-direction: column;
-    height: min(90vw, 90vh);
-    margin: 0px 5px;
-}
-div:has(.chessboard) {
-    flex-direction: row;
-}
-}
-
-/* Style for when viewport width is less than height */
-@media (orientation: portrait){
-.chessboard {
-    width: 90vw;
-    height: 90vw; 
-}
-.panel {
-    flex-direction: row;
-    width: min(90vw, 90vh);
-    margin: 5px 0px;
-}
-div:has(.chessboard) {
-    flex-direction: column;
-}
-}
-
 /* Chess size. Relate to the grid */
 .chess-piece {
     font-size: 9.3cqw !important;
 }
 
 /* Chess color */
-.chess-piece i.blue {color: cornflowerblue !important;}
-.chess-piece i.red {color: firebrick !important;}
+.chess-piece i.blue {
+    color: cornflowerblue !important;
+}
+
+.chess-piece i.red {
+    color: firebrick !important;
+}
 
 /* Style for the panel button */
 button {
@@ -139,4 +111,41 @@ div:has(.chessboard) {
 .file-input:hover {
     background-color: #0056b3;
     color: white;
+}
+
+/* Style for when viewport width is more than height */
+@media (orientation: landscape) {
+    .chessboard {
+        width: 90vh;
+        height: 90vh;
+        /* float: left; */
+    }
+
+    .panel {
+        flex-direction: column;
+        height: min(90vw, 90vh);
+        margin: 0px 5px;
+    }
+
+    div:has(.chessboard) {
+        flex-direction: row;
+    }
+}
+
+/* Style for when viewport width is less than height */
+@media (orientation: portrait) {
+    .chessboard {
+        width: 90vw;
+        height: 90vw;
+    }
+
+    .panel {
+        flex-direction: row;
+        width: min(90vw, 90vh);
+        margin: 5px 0px;
+    }
+
+    div:has(.chessboard) {
+        flex-direction: column;
+    }
 }

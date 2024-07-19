@@ -32,7 +32,7 @@ function setPiece(row, col, pieceId, color) {
 }
 
 /**
- * Clears all pieces from the board.
+ * Removes all pieces from the board.
  */
 function clearPieces() {
   document.querySelectorAll('div.chess-piece').forEach(piece => piece.remove());
@@ -55,6 +55,88 @@ function removeHighlightValidMoves() {
   document.querySelectorAll('div.valid-move').forEach(grid => {
     grid.classList.remove("valid-move");
   });
+}
+
+/**
+ * Moves a piece from one position to another with an animation.
+ * @param {Array} selected_pos - The starting position as [row, col].
+ * @param {Array} target_pos - The target position as [row, col].
+ */
+function movePiece(selected_pos, target_pos) {
+  const [row1, col1] = selected_pos;
+  const [row2, col2] = target_pos;
+  const piece1 = document.querySelector(`#g-${row1}-${col1} .chess-piece`);
+  const grid2 = document.querySelector(`#g-${row2}-${col2}`);
+
+  if (!piece1) return; // Return if the square is empty
+
+  // Clone piece1 to retain its content
+  const clonedPiece1 = piece1.cloneNode(true);
+
+  // Calculate positions
+  const rect1 = piece1.getBoundingClientRect();
+  const rect2 = grid2.getBoundingClientRect();
+  const deltaX1 = (rect2.left + rect2.right - rect1.left - rect1.right) / 2;
+  const deltaY1 = (rect2.top + rect2.bottom - rect1.top - rect1.bottom) / 2;
+
+  // Apply animation styles
+  piece1.style.transition = 'transform 0.5s ease-in-out';
+
+  // Start animation
+  requestAnimationFrame(() => {
+    piece1.style.transform = `translate(${deltaX1}px, ${deltaY1}px)`;
+  });
+
+  // After animation completes, swap pieces
+  setTimeout(() => {
+    piece1.remove();
+    document.getElementById(`g-${row2}-${col2}`).innerHTML = '';
+    document.getElementById(`g-${row2}-${col2}`).appendChild(clonedPiece1);
+  }, 500); // time should match the animation duration
+}
+
+/**
+ * Swaps two pieces on the board with an animation.
+ * @param {Array} selected_pos - The position of the first piece as [row, col].
+ * @param {Array} target_pos - The position of the second piece as [row, col].
+ */
+function swapPiece(selected_pos, target_pos) {
+  const [row1, col1] = selected_pos;
+  const [row2, col2] = target_pos;
+  const piece1 = document.querySelector(`#g-${row1}-${col1} .chess-piece`);
+  const piece2 = document.querySelector(`#g-${row2}-${col2} .chess-piece`);
+
+  if (!piece1 || !piece2) return; // Return if either square is empty
+
+  // Clone pieces to retain its content
+  const clonedPiece1 = piece1.cloneNode(true);
+  const clonedPiece2 = piece2.cloneNode(true);
+
+  // Calculate positions
+  const rect1 = piece1.getBoundingClientRect();
+  const rect2 = piece2.getBoundingClientRect();
+  const deltaX1 = (rect2.left + rect2.right - rect1.left - rect1.right) / 2;
+  const deltaY1 = (rect2.top + rect2.bottom - rect1.top - rect1.bottom) / 2;
+  const deltaX2 = -deltaX1;
+  const deltaY2 = -deltaY1;
+
+  // Apply animation styles
+  piece1.style.transition = 'transform 0.5s ease-in-out';
+  piece2.style.transition = 'transform 0.5s ease-in-out';
+
+  // Start animation
+  requestAnimationFrame(() => {
+    piece1.style.transform = `translate(${deltaX1}px, ${deltaY1}px)`;
+    piece2.style.transform = `translate(${deltaX2}px, ${deltaY2}px)`;
+  });
+
+  // After animation completes, swap pieces
+  setTimeout(() => {
+    piece1.remove();
+    piece2.remove();
+    document.getElementById(`g-${row1}-${col1}`).appendChild(clonedPiece2);
+    document.getElementById(`g-${row2}-${col2}`).appendChild(clonedPiece1);
+  }, 500); // time should match the animation duration
 }
 
 /**
@@ -164,7 +246,12 @@ document.getElementById('chessboard').addEventListener('click', function (event)
           .then(data => {
             if (data.success) {
               removeHighlightValidMoves();
-              updateBoard(data.piece_pos);
+              const actionType = data.action_type;
+              if (actionType === 'move' || actionType === 'capture') {
+                movePiece(selectedPiecePosition, [row, col]);
+              } else if (actionType === 'swap') {
+                swapPiece(selectedPiecePosition, [row, col]);
+              }
               selectedPiecePosition = null;
               if (data.is_win) {
                 setTimeout(function () {

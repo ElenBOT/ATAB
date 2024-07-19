@@ -52,7 +52,7 @@ def get_valid_moves_info(coord):
         return False, None, "Is the current player piece, but no valid place to move."
 
 
-def format_board_response(success, piece_pos, is_win=False, win_msg=None):
+def format_board_response(success, piece_pos, is_win=False, win_msg=None, action_type=None):
     """Format board response in JSON format."""
     return {
         "type": "board",
@@ -60,6 +60,7 @@ def format_board_response(success, piece_pos, is_win=False, win_msg=None):
         "piece_pos": piece_pos,
         "is_win": is_win,
         "win_msg": win_msg,
+        "action_type": action_type,
     }
 
 
@@ -236,7 +237,7 @@ def handle_move_piece():
     success, win_player = board.make_move(
         tuple(data["selected_pos"][::-1]), tuple(data["target_pos"][::-1])
     )
-    is_win = win_player is not None
+    is_win = board.is_win
     if is_win:
         if win_player == 0:
             win_msg = "Blue Win!"
@@ -244,7 +245,11 @@ def handle_move_piece():
             win_msg = "Red Win!"
     else:
         win_msg = None
-    return jsonify(format_board_response(success, serialize_board(), is_win, win_msg))
+    if success:
+        action_type = board.latest_move_details[4]
+    else:
+        action_type = None
+    return jsonify(format_board_response(success, serialize_board(), is_win, win_msg, action_type))
 
 
 @app.route("/")
