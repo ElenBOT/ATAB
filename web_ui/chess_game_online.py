@@ -10,7 +10,7 @@ from datetime import datetime
 
 import numpy as np
 from flask import Flask, Response, abort, jsonify, render_template, request, session
-from flask_socketio import ConnectionRefusedError, SocketIO, join_room, rooms
+from flask_socketio import ConnectionRefusedError, SocketIO, join_room
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import game
@@ -267,10 +267,6 @@ def get_sid():
     session["sid"] = sid
     player_sid[session["player"]].add(sid)
     join_room(str(session["player"]), sid, "/")
-    for s in player_sid[0]:
-        print(f"room: p0, sid: {s}, list of room: {rooms(s, '/')}")
-    for s in player_sid[1]:
-        print(f"room: p1, sid: {s}, list of room: {rooms(s, '/')}")
     if (len(player_sid[0]) >= 1) and (len(player_sid[1]) >= 1):
         socketio.emit("player-ready", True)
     return "", 204
@@ -433,7 +429,6 @@ def move_piece(is_win, win_msg):
 def get_valid_moves_info(coord):
     """Retrieve valid moves information for the piece at the given position."""
     global board
-    print("player:", session["player"], f", coord: {coord}")
     if board.current_turn != session["player"]:
         return False, None, "Not your turn."
     if session["player"] == 0:
