@@ -72,3 +72,16 @@ Changed
 * Change game log meta format.
 * Add type of action taken by the piece in game log.
 * Add win status in `game.py`
+
+### 2024-07-23
+
+Added
+* Add turn display in web_ui.
+
+Bugfix
+* In online mode, the game UI does not correctly remove selection and highlights for the same player in multiple sessions.
+
+Changed
+* Renamed variables and functions for clarity.
+* Reorganized code structure.
+* Delete win_player output in game.make_move.

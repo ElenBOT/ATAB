@@ -21,6 +21,10 @@ app.secret_key = os.urandom(24)
 board = None
 player_sid = [set(), set()]
 
+PLAYER_BLUE_STR = "0"
+PLAYER_BLUE_INT = 0
+PLAYER_RED_STR = "1"
+PLAYER_RED_INT = 1
 
 class Authentication:
     """
@@ -96,7 +100,7 @@ def token_required(func):
     return wrapper
 
 
-def log_format():
+def format_game_log():
     """
     Formats the game log into a structured JSON format for download.
     """
@@ -183,23 +187,16 @@ def log_format():
         },
     }
     global board
-    game_log = []
-    for (
-        start_position,
-        end_position,
-        selected_piece,
-        target_piece,
-        action_type,
-    ) in board.move_log:
-        game_log.append(
-            (
-                game.coord_to_readable(start_position),
-                game.coord_to_readable(end_position),
-                selected_piece,
-                target_piece,
-                action_type,
-            )
+    game_log = [
+        (
+            game.coord_to_readable(start_position),
+            game.coord_to_readable(destination_position),
+            start_piece,
+            destination_piece,
+            action_type,
         )
+        for start_position, destination_position, start_piece, destination_piece, action_type in board.move_log
+    ]
     final_state = {
         "board": board.board.tolist(),  # Convert the numpy array to a list for JSON serialization
         "is_win": board.is_win,
@@ -220,7 +217,7 @@ def download_log():
     """
     Route to download the game log as a JSON file.
     """
-    json_string = json.dumps(log_format(), separators=(",", ":"))
+    json_string = json.dumps(format_game_log(), separators=(",", ":"))
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filename = f"game_log_{timestamp}.json"
     response = Response(json_string, mimetype="application/json")
@@ -236,11 +233,11 @@ def login():
     data = request.json
     password = data["password"]
     if auth.verify_password(password, auth.user_passwords["player1"]):
-        session["player"] = 0
+        session["player"] = PLAYER_BLUE_INT
         session["login"] = True
         return jsonify(success=True, token=auth.user_token["player1"])
     elif auth.verify_password(password, auth.user_passwords["player2"]):
-        session["player"] = 1
+        session["player"] = PLAYER_RED_INT
         session["login"] = True
         return jsonify(success=True, token=auth.user_token["player2"])
     else:
@@ -251,7 +248,7 @@ def login():
 def check_login():
     if not session.get("login"):
         return jsonify(success=False)
-    if session["player"] == 0:
+    if session["player"] == PLAYER_BLUE_INT:
         return jsonify(success=True, token=auth.user_token["player1"])
     else:
         return jsonify(success=True, token=auth.user_token["player2"])
@@ -267,7 +264,7 @@ def get_sid():
     session["sid"] = sid
     player_sid[session["player"]].add(sid)
     join_room(str(session["player"]), sid, "/")
-    if (len(player_sid[0]) >= 1) and (len(player_sid[1]) >= 1):
+    if (len(player_sid[PLAYER_BLUE_INT]) >= 1) and (len(player_sid[PLAYER_RED_INT]) >= 1):
         socketio.emit("player-ready", True)
     return "", 204
 
@@ -288,14 +285,20 @@ def handle_connect():
 
 @socketio.on("initialize_session")
 def initialize_session():
-    """
-    Initialize the board. Recover the board status if it exists; otherwise,
-    create a new board.
-    """
+    """Initialize the board or recover its status if it exists."""
     global board
     if board is None:
         board = game.Board()
-    return format_board_response(serialize_board(session["player"]))
+    details = board.latest_move_details
+    start_position, destination_position = coord_transform(
+        details[0], details[1], session["player"]
+    )
+    return create_board_response(
+        serialize_board_state(session["player"]),
+        start_position,
+        destination_position,
+        board.current_turn,
+    )
 
 
 @socketio.on("new_game")
@@ -303,7 +306,7 @@ def start_new_game():
     """Start a new game and return the initial board state."""
     global board
     board = game.Board()
-    update_board()
+    update_board(board.current_turn)
 
 
 @socketio.on("undo")
@@ -314,7 +317,7 @@ def undo_last_move():
         return {"success": False}
     success = board.undo()
     if success:
-        update_board()
+        update_board(board.current_turn)
         return {"success": True}
     else:
         return {"success": False}
@@ -325,33 +328,30 @@ def handle_select_grid(data):
     """Handle selecting a grid position and return valid moves."""
     global board
     if board is None:
-        return format_valid_moves_response(False, None, "No board instance")
-    valid, valid_moves, message = get_valid_moves_info(tuple(data["pos"][::-1]))
-    return format_valid_moves_response(valid, valid_moves, message)
+        return create_valid_moves_response(False, None, "No board instance")
+    return create_valid_moves_response(tuple(data["position"][::-1]))
 
 
 @socketio.on("move_piece")
 def handle_move_piece(data):
     """Handle moving a piece to a new position and return the updated board state."""
-    if session["player"] == 0:
-        selected_pos = player0_coord_transform(data["selected_pos"][::-1])
-        target_pos = player0_coord_transform(tuple(data["target_pos"][::-1]))
+    if session["player"] == PLAYER_BLUE_INT:
+        start_position = player0_coord_transform(data["start_position"][::-1])
+        destination_position = player0_coord_transform(
+            tuple(data["destination_position"][::-1])
+        )
     else:
-        selected_pos = tuple(data["selected_pos"][::-1])
-        target_pos = tuple(data["target_pos"][::-1])
+        start_position = tuple(data["start_position"][::-1])
+        destination_position = tuple(data["destination_position"][::-1])
     global board
-    success, win_player = board.make_move(selected_pos, target_pos)
+    success = board.make_move(start_position, destination_position)
     is_win = board.is_win
-    if is_win:
-        if win_player == 0:
-            win_msg = "Blue Win!"
-        else:
-            win_msg = "Red Win!"
-    else:
-        win_msg = None
+    win_message = (
+        "Blue Win!" if is_win and board.win_player == PLAYER_BLUE_INT else "Red Win!" if is_win else None
+    )
 
     if success:
-        move_piece(is_win, win_msg)
+        move_piece(board.current_turn, is_win, win_message)
     return {"success": success}
 
 
@@ -362,89 +362,93 @@ def player0_coord_transform(coord):
     return 7 - coord[0], 7 - coord[1]
 
 
-def serialize_board(player):
+def coord_transform(start_position, destination_position, player):
+    start_position_ = None if start_position is None else player0_coord_transform(start_position[::-1]) if player == PLAYER_BLUE_INT else start_position[::-1]
+    destination_position_ = None if destination_position is None else player0_coord_transform(destination_position[::-1]) if player == PLAYER_BLUE_INT else destination_position[::-1]
+    return start_position_, destination_position_
+
+
+def serialize_board_state(player):
     """Serialize the current board state into a list of piece positions."""
 
-    def piece_color(n):
-        if n == "0":
-            return "blue"
-        else:
-            return "red"
+    def get_piece_color(player_id):
+        return "blue" if player_id == PLAYER_BLUE_STR else "red"
 
     global board
-    pieces_pos = []
-    if player == 0:
-        board_view = np.rot90(board.board, 2)
-    else:
-        board_view = board.board
-    for i in range(8):
-        for j in range(8):
-            piece = board_view[i, j]
+    piece_positions = []
+    board_view = np.rot90(board.board, 2) if player == PLAYER_BLUE_INT else board.board
+
+    for row in range(8):
+        for col in range(8):
+            piece = board_view[col, row]
             if piece != "n":
-                pieces_pos.append(((j, i), piece_color(piece[1]), piece[0]))
-    return pieces_pos
+                piece_positions.append(
+                    ((row, col), get_piece_color(piece[1]), piece[0])
+                )
+    return piece_positions
 
 
-def update_board():
+def update_board(turn):
     """
     Emit board update events to players with the current board state.
     """
+    details = board.latest_move_details
+    start_position0, destination_position0 = coord_transform(details[0], details[1], PLAYER_BLUE_INT)
+    start_position1, destination_position1 = coord_transform(details[0], details[1], PLAYER_RED_INT)
     socketio.emit(
         "board-update",
-        format_board_response(serialize_board(0)),
-        to='0',
+        create_board_response(
+            serialize_board_state(PLAYER_BLUE_INT), start_position0, destination_position0, turn
+        ),
+        to=PLAYER_BLUE_STR,
     )
     socketio.emit(
         "board-update",
-        format_board_response(serialize_board(1)),
-        to='1',
+        create_board_response(
+            serialize_board_state(PLAYER_RED_INT), start_position1, destination_position1, turn
+        ),
+        to=PLAYER_RED_STR,
     )
 
 
-def move_piece(is_win, win_msg):
+def move_piece(turn, is_win, win_message):
     """
     Emit move piece events to players.
     """
     details = board.latest_move_details
-    details_1 = (
-        details[0][::-1],
-        details[1][::-1],
-    ) + details[2:]
-    details_0 = (
-        player0_coord_transform(details[0][::-1]),
-        player0_coord_transform(details[1][::-1]),
-    ) + details_1[2:]
+    details_0 = coord_transform(details[0], details[1], PLAYER_BLUE_INT) + details[2:]
+    details_1 = coord_transform(details[0], details[1], PLAYER_RED_INT) + details[2:]
     socketio.emit(
         "move-piece",
-        format_move_response(details_0, is_win, win_msg),
-        to='0',
+        create_move_response(details_0, turn, is_win, win_message),
+        to=PLAYER_BLUE_STR,
     )
     socketio.emit(
         "move-piece",
-        format_move_response(details_1, is_win, win_msg),
-        to='1',
+        create_move_response(details_1, turn, is_win, win_message),
+        to=PLAYER_RED_STR,
     )
 
 
-def get_valid_moves_info(coord):
+def get_valid_moves(position):
     """Retrieve valid moves information for the piece at the given position."""
     global board
     if board.current_turn != session["player"]:
         return False, None, "Not your turn."
-    if session["player"] == 0:
-        coord = player0_coord_transform(coord)
-    status, valid_moves = board.get_piece_valid_moves(coord)
+    if session["player"] == PLAYER_BLUE_INT:
+        position = player0_coord_transform(position)
+    status, valid_moves = board.get_piece_valid_moves(position)
     if status == 0:
-        pieces_pos = []
-        if session["player"] == 0:
-            valid_moves_view = np.rot90(valid_moves, 2)
-        else:
-            valid_moves_view = valid_moves
-        for i in range(8):
-            for j in range(8):
-                if valid_moves_view[i, j]:
-                    pieces_pos.append((j, i))
-        return True, pieces_pos, ""
+        valid_moves_view = (
+            np.rot90(valid_moves, 2) if session["player"] == PLAYER_BLUE_INT else valid_moves
+        )
+        valid_positions = [
+            (row, col)
+            for row in range(8)
+            for col in range(8)
+            if valid_moves_view[col, row]
+        ]
+        return True, valid_positions, ""
     elif status == 1:
         return False, None, "No piece exists at the given position."
     elif status == 2:
@@ -455,30 +459,35 @@ def get_valid_moves_info(coord):
         pass
 
 
-def format_board_response(piece_pos):
+def create_board_response(piece_positions, start_position, destination_position, turn):
     """Format board details response in JSON format."""
     return {
         "type": "board",
-        "piece_pos": piece_pos,
+        "piece_positions": piece_positions,
+        "start_position": start_position,
+        "destination_position": destination_position,
+        "turn": turn,
     }
 
 
-def format_move_response(move_details, is_win, win_msg):
+def create_move_response(move_details, turn, is_win, win_message):
     """Format move response in JSON format."""
     return {
         "type": "move_details",
-        "move": move_details,
+        "move_details": move_details,
         "is_win": is_win,
-        "win_msg": win_msg,
+        "win_message": win_message,
+        "turn": turn,
     }
 
 
-def format_valid_moves_response(valid, valid_moves, message):
+def create_valid_moves_response(position):
     """Format valid moves response in JSON format."""
+    valid, valid_positions, message = get_valid_moves(position)
     return {
         "type": "valid_moves",
         "valid": valid,
-        "valid_moves": valid_moves,
+        "valid_moves": valid_positions,
         "message": message,
     }
 
@@ -490,6 +499,7 @@ def open_browser():
 
 if __name__ == "__main__":
     threading.Timer(1, open_browser).start()
-    socketio.run(app, host="0.0.0.0", port=5000, ssl_context="adhoc")
+    socketio.run(app, host="0.0.0.0", ssl_context="adhoc")
+    # socketio.run(app, host="0.0.0.0", port=5000)
     # socketio.run(app, host="0.0.0.0", port=5000, ssl_context=("cert.pem", "key.pem"))
     # socketio.run(app, host="0.0.0.0", port=5000, ssl_context=("cert.crt", "cert-key.key"))

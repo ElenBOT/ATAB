@@ -8,6 +8,7 @@
     width: min(90vw, 90vh);
     height: min(90vw, 90vh);
     container-type: size;
+    cursor: pointer;
 }
 
 /* Style the chessboard grid */
@@ -60,6 +61,12 @@
     border: 0.7cqw solid #568d64 !important;
 }
 
+/* Last moves highlight style */
+.grid.highlight {
+    outline: 0.7cqw solid yellow;
+    outline-offset: -1.4cqw;
+}
+
 /* Style for the panel button */
 button {
     padding: 10px 20px;
@@ -87,6 +94,21 @@ button:active {
     background-color: #fff;
     border: 2px dotted #666;
     border-radius: 10px;
+}
+
+/* Styles for the turn indicator element that displays the current player's turn */
+.turn-indicator {
+    padding: 8px 20px;
+    border-radius: 5px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font-size: 20px;
+    font-weight: bold;
+    margin: 5px 5px;
+}
+
+.turn-indicator span {
+    padding: 5px;
 }
 
 /* The chessboard and panel position */

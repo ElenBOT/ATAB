@@ -30,13 +30,13 @@ let playSpeedInterval = 1000;
 /**
  * Initializes the board with an 8x8 grid of squares.
  */
-function initializeBoard() {
-  const board = document.getElementById("chessboard");
+function initializeChessboard() {
+  const chessboard = document.getElementById("chessboard");
   for (row = 0; row < 8; row++) {
     for (col = 0; col < 8; col++) {
       const color = (row % 2 === 0) ? (col % 2 === 0 ? "black" : "white") : (col % 2 === 0 ? "white" : "black");
       const gridSquare = `<div id="g-${row}-${col}" class="grid ${color}" data-row="${row}" data-col="${col}"></div>`;
-      board.insertAdjacentHTML('beforeend', gridSquare);
+      chessboard.insertAdjacentHTML('beforeend', gridSquare);
     }
   }
 }
@@ -48,103 +48,101 @@ function initializeBoard() {
  * @param {string} pieceId - The identifier for the piece type. (a, s, w, d)
  * @param {string} color - The color of the piece.
  */
-function setPiece(row, col, pieceId, color) {
-  const elem = `<div class="chess-piece" data-piece="${pieceId}" data-piece-color="${color}"><i class="fa-regular fa-${piecesIcons[pieceId]} ${color}"></i></div>`;
-  document.getElementById(`g-${row}-${col}`).insertAdjacentHTML('beforeend', elem);
+function placePiece(row, col, pieceId, color) {
+  const pieceElement = `<div class="chess-piece" data-piece="${pieceId}" data-piece-color="${color}"><i class="fa-regular fa-${piecesIcons[pieceId]} ${color}"></i></div>`;
+  document.getElementById(`g-${row}-${col}`).insertAdjacentHTML('beforeend', pieceElement);
 }
 
 /**
  * Removes all pieces from the board.
  */
-function clearPieces() {
+function removeAllPieces() {
   document.querySelectorAll('div.chess-piece').forEach(piece => piece.remove());
 }
 
 /**
  * Clears a piece from the board at the specified row and column.
- * @param {Array} pos - An array containing the row and column of the piece.
+ * @param {Array} position - An array containing the row and column of the piece.
  */
-function clearPiece(pos) {
-  document.getElementById(`g-${pos[0]}-${pos[1]}`).innerHTML = "";
+function removePiece(position) {
+  document.getElementById(`g-${position[0]}-${position[1]}`).innerHTML = "";
 }
 
 /**
  * Sets up the initial positions of all pieces on the board.
  */
 function setStartingPositions() {
-  clearPieces();
+  removeAllPieces();
   // Set blue pieces
   for (const piece in starting_positions) {
     starting_positions[piece].forEach(position => {
-      setPiece(position[0], position[1], piece, 'blue');
+      placePiece(position[0], position[1], piece, 'blue');
     });
   }
   // Set red pieces
   for (const piece in starting_positions) {
     starting_positions[piece].forEach(position => {
-      setPiece(7 - position[0], position[1], piece, 'red');
+      placePiece(7 - position[0], position[1], piece, 'red');
     });
   }
 }
 
 /**
  * Moves a piece from one position to another with an animation.
- * @param {Array} selected_pos - The starting position as [row, col].
- * @param {Array} target_pos - The target position as [row, col].
- * @param {number} trans_time - The transition time for the animation (default 0.5s).
+ * @param {Array} startPosition - The starting position as [row, col].
+ * @param {Array} endPosition - The target position as [row, col].
+ * @param {number} transitionTime - The transition time for the animation (default 0.5s).
  */
-function movePiece(selected_pos, target_pos, trans_time = 0.5) {
-  const [row1, col1] = selected_pos;
-  const [row2, col2] = target_pos;
-  const piece1 = document.querySelector(`#g-${row1}-${col1} .chess-piece`);
-  const grid2 = document.querySelector(`#g-${row2}-${col2}`);
+function animatePieceMovement(startPosition, endPosition, transitionTime = 0.5) {
+  const [startRow, startCol] = startPosition;
+  const [endRow, endCol] = endPosition;
+  const piece = document.querySelector(`#g-${startRow}-${startCol} .chess-piece`);
+  const endGrid = document.querySelector(`#g-${endRow}-${endCol}`);
 
-  if (!piece1) return; // Return if the square is empty
+  if (!piece) return; // If there's no piece, do nothing
 
-  // Clone piece1 to retain its content
-  const clonedPiece1 = piece1.cloneNode(true);
+  const clonedPiece = piece.cloneNode(true);
 
-  // Calculate positions
-  const rect1 = piece1.getBoundingClientRect();
-  const rect2 = grid2.getBoundingClientRect();
-  const deltaX1 = (rect2.left + rect2.right - rect1.left - rect1.right) / 2;
-  const deltaY1 = (rect2.top + rect2.bottom - rect1.top - rect1.bottom) / 2;
+  // Calculate animation delta
+  const rectStart = piece.getBoundingClientRect();
+  const rectEnd = endGrid.getBoundingClientRect();
+  const deltaX = (rectEnd.left + rectEnd.right - rectStart.left - rectStart.right) / 2;
+  const deltaY = (rectEnd.top + rectEnd.bottom - rectStart.top - rectStart.bottom) / 2;
 
   // Apply animation styles
-  piece1.style.transition = `transform ${trans_time}s ease-in-out`;
+  piece.style.transition = `transform ${transitionTime}s ease-in-out`;
 
   // Start animation
   requestAnimationFrame(() => {
-    piece1.style.transform = `translate(${deltaX1}px, ${deltaY1}px)`;
+    piece.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
   });
 
-  // After animation completes, swap pieces
+  // After animation completes, place piece
   timeoutId = setTimeout(() => {
-    piece1.remove();
-    document.getElementById(`g-${row2}-${col2}`).innerHTML = '';
-    document.getElementById(`g-${row2}-${col2}`).appendChild(clonedPiece1);
-  }, trans_time * 1000); // time should match the animation duration
+    piece.remove();
+    endGrid.innerHTML = '';
+    endGrid.appendChild(clonedPiece);
+  }, transitionTime * 1000); // time should match the animation duration
 }
 
 /**
  * Swaps two pieces on the board with an animation.
- * @param {Array} selected_pos - The position of the first piece as [row, col].
- * @param {Array} target_pos - The position of the second piece as [row, col].
- * @param {number} trans_time - The transition time for the animation (default 0.5s).
+ * @param {Array} startPosition - The position of the first piece as [row, col].
+ * @param {Array} endPosition - The position of the second piece as [row, col].
+ * @param {number} transitionTime - The transition time for the animation (default 0.5s).
  */
-function swapPiece(selected_pos, target_pos, trans_time = 0.5) {
-  const [row1, col1] = selected_pos;
-  const [row2, col2] = target_pos;
-  const piece1 = document.querySelector(`#g-${row1}-${col1} .chess-piece`);
-  const piece2 = document.querySelector(`#g-${row2}-${col2} .chess-piece`);
+function animatePieceSwap(startPosition, endPosition, transitionTime = 0.5) {
+  const [startRow, startCol] = startPosition;
+  const [endRow, endCol] = endPosition;
+  const piece1 = document.querySelector(`#g-${startRow}-${startCol} .chess-piece`);
+  const piece2 = document.querySelector(`#g-${endRow}-${endCol} .chess-piece`);
 
-  if (!piece1 || !piece2) return; // Return if either square is empty
+  if (!piece1 || !piece2) return; // If either square is empty, do nothing
 
-  // Clone pieces to retain its content
   const clonedPiece1 = piece1.cloneNode(true);
   const clonedPiece2 = piece2.cloneNode(true);
 
-  // Calculate positions
+  // Calculate animation deltas
   const rect1 = piece1.getBoundingClientRect();
   const rect2 = piece2.getBoundingClientRect();
   const deltaX1 = (rect2.left + rect2.right - rect1.left - rect1.right) / 2;
@@ -153,8 +151,8 @@ function swapPiece(selected_pos, target_pos, trans_time = 0.5) {
   const deltaY2 = -deltaY1;
 
   // Apply animation styles
-  piece1.style.transition = `transform ${trans_time}s ease-in-out`;
-  piece2.style.transition = `transform ${trans_time}s ease-in-out`;
+  piece1.style.transition = `transform ${transitionTime}s ease-in-out`;
+  piece2.style.transition = `transform ${transitionTime}s ease-in-out`;
 
   // Start animation
   requestAnimationFrame(() => {
@@ -166,9 +164,9 @@ function swapPiece(selected_pos, target_pos, trans_time = 0.5) {
   timeoutId = setTimeout(() => {
     piece1.remove();
     piece2.remove();
-    document.getElementById(`g-${row1}-${col1}`).appendChild(clonedPiece2);
-    document.getElementById(`g-${row2}-${col2}`).appendChild(clonedPiece1);
-  }, trans_time * 1000); // time should match the animation duration
+    document.getElementById(`g-${startRow}-${startCol}`).appendChild(clonedPiece2);
+    document.getElementById(`g-${endRow}-${endCol}`).appendChild(clonedPiece1);
+  }, transitionTime * 1000); // time should match the animation duration
 }
 
 /**
@@ -204,11 +202,11 @@ function forward(trans_time = 0.5) {
     const actionType = move[4];
 
     if (actionType === 'move') {
-      movePiece(startCoord, endCoord, trans_time);
+      animatePieceMovement(startCoord, endCoord, trans_time);
     } else if (actionType === 'swap') {
-      swapPiece(startCoord, endCoord, trans_time);
+      animatePieceSwap(startCoord, endCoord, trans_time);
     } else {
-      movePiece(startCoord, endCoord, trans_time);
+      animatePieceMovement(startCoord, endCoord, trans_time);
     }
     currentMove++;
   } else {
@@ -232,10 +230,10 @@ function backward() {
     const startPiece = move[2];
     const targetPiece = move[3];
 
-    clearPiece(startCoord);
-    clearPiece(endCoord);
-    setPiece(startCoord[0], startCoord[1], startPiece[0], color(startPiece[1]));
-    setPiece(endCoord[0], endCoord[1], targetPiece[0], color(targetPiece[1]));
+    removePiece(startCoord);
+    removePiece(endCoord);
+    placePiece(startCoord[0], startCoord[1], startPiece[0], color(startPiece[1]));
+    placePiece(endCoord[0], endCoord[1], targetPiece[0], color(targetPiece[1]));
   } else {
     // At start of the game log
     if (intervalId) {
@@ -314,4 +312,4 @@ document.getElementById('speed-range').addEventListener('change', function (even
 });
 
 // Initial Execution
-initializeBoard();
+initializeChessboard();
