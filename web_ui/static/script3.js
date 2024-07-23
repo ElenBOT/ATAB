@@ -5,6 +5,14 @@ const piecesIcons = {
   "d": "chess-king"
 };
 
+// Initialize variables
+let token = null;
+const socket = io(window.location.host, {
+  autoConnect: false,  // Manually connect after getting the token
+});
+let playerReady = false;
+let selectedPiecePosition = null;  // Tracks the currently selected piece position
+
 /**
  * Initializes the board with an 8x8 grid of squares.
  */
@@ -193,52 +201,146 @@ function updateBoardState(piecePositions, currentPlayer, startPosition, endPosit
 }
 
 /**
- * Initializes the session by fetching the board status.
+ * Check if a previous login exists
  */
-function initializeGameSession() {
-  fetch('http://127.0.0.1:5000/session', { method: 'POST' })
-    .then(response => response.json())
-    .then(data => updateBoardState(data.piece_positions, data.turn, data.start_position, data.destination_position));
-}
-
-/**
- * Event listener for the new game button.
- * Starts a new game by fetching new game data and updating the board.
- */
-document.getElementById('new-game-button').addEventListener('click', () => {
-  clearValidMoveHighlights();
-  selectedPiecePosition = null;
-  fetch('http://127.0.0.1:5000/new_game', { method: 'POST' })
-    .then(response => response.json())
-    .then(data => updateBoardState(data.piece_positions, data.turn));
-});
-
-/**
- * Event listener for the undo button.
- * Undoes the last move by fetching the updated game data and updating the board.
- */
-document.getElementById('undo-button').addEventListener('click', () => {
-  clearValidMoveHighlights();
-  selectedPiecePosition = null;
-  fetch('http://127.0.0.1:5000/undo', { method: 'POST' })
+function checkPreviousLogin() {
+  fetch('/check-login', {
+    method: 'GET'
+  })
     .then(response => response.json())
     .then(data => {
       if (data.success) {
-        updateBoardState(data.piece_positions, data.turn, data.start_position, data.destination_position);
+        // Successful login
+        token = data.token;
+        connectSocket(token);
+        initializeGameSession();
+        document.getElementById('login-box').style.display = 'none';
+        document.getElementById('chess-game').classList.remove('blur');
       } else {
-        console.log('Undo failed');
+        // Not login yet
+      }
+    });
+}
+
+// Event listener for the login form submission
+document.getElementById('login-form').addEventListener('submit', function (event) {
+  event.preventDefault();
+  const password = document.getElementById('password').value;
+  // Send login request to server
+  fetch('/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ password: password })
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Successful login
+        token = data.token;
+        connectSocket(token);
+        initializeGameSession();
+        document.getElementById('login-box').style.display = 'none';
+        document.getElementById('chess-game').classList.remove('blur');
+      } else {
+        // Incorrect password
+        alert('Wrong Password.');
       }
     });
 });
 
 /**
- * Event listener for the log download button.
+ * Connects to the Socket.IO server with the provided token.
+ * @param {string} token - The authentication token for connecting to the server.
  */
-document.getElementById('download-log').addEventListener('click', function () {
-  window.location.href = '/download_log';
+function connectSocket(token) {
+  // Configure Socket.IO connection with authorization token
+  socket.io.opts.extraHeaders = {
+    Authorization: `Bearer ${token}`,
+  };
+  socket.connect();
+
+  // Event listener for successful connection
+  socket.on('connect', () => {
+    console.log('Connected to Socket.IO server with token.');
+    // Send session ID to server after successful connection
+    fetch('/send-sid', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ sid: socket.id })
+    });
+  });
+
+  // Event listener for disconnection
+  socket.on('disconnect', () => {
+    console.log('Disconnected from Socket.IO server.');
+  });
+}
+
+/**
+ * Initializes the session by fetching the board status.
+ */
+function initializeGameSession() {
+  socket.emit('initialize_session', (data) => {
+    updateBoardState(data.piece_positions, data.turn, data.start_position, data.destination_position);
+  });
+}
+
+// Event listeners for game controls
+
+// Event listener for the new game button
+document.getElementById('new-game-button').addEventListener('click', () => {
+  performIfReady(() => {
+    socket.emit('new_game');
+  });
 });
 
-let selectedPiecePosition = null;
+// Event listener for the undo button
+document.getElementById('undo-button').addEventListener('click', () => {
+  performIfReady(() => {
+    socket.emit('undo', (data) => {
+      if (!data.success) {
+        console.log('Undo failed');
+      }
+    });
+  });
+});
+
+// Event listener for downloading game log
+document.getElementById('download-log').addEventListener('click', function () {
+  fetch('/download_log', {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+    .then(response => {
+      // Check if response is successful
+      if (!response.ok) {
+        throw new Error(`Download failed with status ${response.status}`);
+      }
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition.split(';')[1].trim().split('=')[1].replace(/"/g, '');
+
+      // Start downloading the file
+      return response.blob().then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      });
+    })
+    .catch(err => console.error('Error downloading log:', err));
+});
+
 
 /**
  * Event listener for clicks on the chessboard.
@@ -254,82 +356,105 @@ let selectedPiecePosition = null;
  *   - If the move is successful, updates the board and checks for a win condition.
  */
 document.getElementById('chessboard').addEventListener('click', function (event) {
-  let targetElement;
-  let isGridSquare = false;
+  performIfReady(() => {
+    let targetElement;
+    let isGridSquare = false;
 
-  // Determine the clicked element and whether it is a grid square
-  if (event.target.tagName === "I" && event.target.parentElement.parentElement.classList.contains('grid')) {
-    isGridSquare = true;
-    targetElement = event.target.parentElement.parentElement;
-  } else if (event.target.tagName === "DIV" && event.target.classList.contains('grid')) {
-    isGridSquare = true;
-    targetElement = event.target;
-  }
+    // Determine the clicked element and whether it is a grid square
+    if (event.target.tagName === "I" && event.target.parentElement.parentElement.classList.contains('grid')) {
+      isGridSquare = true;
+      targetElement = event.target.parentElement.parentElement;
+    } else if (event.target.tagName === "DIV" && event.target.classList.contains('grid')) {
+      isGridSquare = true;
+      targetElement = event.target;
+    }
 
-  // If the clicked element is a grid square
-  if (isGridSquare) {
-    const row = parseInt(targetElement.getAttribute('data-row'));
-    const col = parseInt(targetElement.getAttribute('data-col'));
+    // If the clicked element is a grid square
+    if (isGridSquare) {
+      const row = parseInt(targetElement.getAttribute('data-row'));
+      const col = parseInt(targetElement.getAttribute('data-col'));
 
-    if (selectedPiecePosition !== null) {
-      // If a piece is already selected
-      if (selectedPiecePosition[0] === row && selectedPiecePosition[1] === col) {
-        // If the clicked square is the same as the selected piece's square, deselect the piece
-        clearValidMoveHighlights();
-        selectedPiecePosition = null;
-      } else {
-        // Otherwise, attempt to move the piece to the new square
-        fetch('http://127.0.0.1:5000/move_piece', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ start_position: selectedPiecePosition, destination_position: [row, col] })
-        })
-          .then(response => response.json())
-          .then(data => {
-            if (data.success) {
-              clearValidMoveHighlights();
-              clearLastMoveHighlights();
-              highlightLastMove(data.start_position, data.destination_position);
-
-              const actionType = data.action_type;
-              if (actionType === 'move' || actionType === 'capture') {
-                animatePieceMovement(selectedPiecePosition, [row, col]);
-              } else if (actionType === 'swap') {
-                animatePieceSwap(selectedPiecePosition, [row, col]);
-              }
-              selectedPiecePosition = null;
-              updateTurnDisplay(data.turn);
-              if (data.is_win) {
-                setTimeout(function () {
-                  alert(data.win_message);
-                }, 100);
-              }
-            } else {
-              console.log("Move piece failed")
+      if (selectedPiecePosition !== null) {
+        // If a piece is already selected
+        if (selectedPiecePosition[0] === row && selectedPiecePosition[1] === col) {
+          // If the clicked square is the same as the selected piece's square, deselect the piece
+          clearValidMoveHighlights();
+          selectedPiecePosition = null;
+        } else {
+          // Otherwise, attempt to move the piece to the new square
+          socket.emit('move_piece', { start_position: selectedPiecePosition, destination_position: [row, col] }, (data) => {
+            if (!data.success) {
+              console.log("fail: move piece");
             }
           });
-      }
-    } else {
-      // If no piece is selected, attempt to select the clicked square
-      fetch('http://127.0.0.1:5000/select_grid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ position: [row, col] })
-      })
-        .then(response => response.json())
-        .then(data => {
+        }
+      } else {
+        // If no piece is selected, attempt to select the clicked square
+        socket.emit('select_grid', { position: [row, col] }, (data) => {
           if (data.valid) {
             highlightValidMoves(data.valid_moves);
-            selectedPiecePosition = [row, col]
+            selectedPiecePosition = [row, col];
           } else {
-            console.log("Selection failed:", data.message);
+            console.log("fail:", data.message);
             selectedPiecePosition = null;
           }
         });
+      }
     }
+  });
+});
+
+
+// Event listener for receiving board updates from the server
+socket.on('board-update', function (data) {
+  updateBoardState(data.piece_positions, data.turn, data.start_position, data.destination_position);
+  clearValidMoveHighlights();
+  selectedPiecePosition = null;
+});
+
+// Event listener for receiving pieces move from the server
+socket.on('move-piece', function (data) {
+  const move_details = data.move_details;
+  const start_position = move_details[0];
+  const destination_position = move_details[1];
+  const actionType = move_details[4];
+
+  clearValidMoveHighlights();
+  clearLastMoveHighlights();
+  highlightLastMove(start_position, destination_position);
+  selectedPiecePosition = null;
+
+  if (actionType === 'move' || actionType === 'capture') {
+    animatePieceMovement(start_position, destination_position);
+  } else if (actionType === 'swap') {
+    animatePieceSwap(start_position, destination_position);
+  }
+  updateTurnDisplay(data.turn);
+  if (data.is_win) {
+    // Display win message if there is a winner
+    setTimeout(function () {
+      alert(data.win_message);
+    }, 100);
   }
 });
 
+// Event listener for player readiness status from the server
+socket.on('player-ready', function (isReady) {
+  playerReady = isReady;
+});
+
+/**
+ * Executes an action only if both players are ready.
+ * @param {function} action - The action to perform.
+ */
+function performIfReady(action) {
+  if (playerReady) {
+    action();
+  } else {
+    console.log('Action not allowed until players are ready.');
+  }
+}
+
 // Initial Execution
 initializeChessboard();
-initializeGameSession();
+checkPreviousLogin();

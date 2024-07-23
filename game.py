@@ -96,6 +96,8 @@ class Board:
             for pos in starting_positions[piece_code]:
                 self.board[pos[0], 7 - pos[1]] = f"{piece_code}1"
         self.current_turn = 0  # Set initial turn to player 0
+        self.is_win = False  # Indicates whether the game has been won
+        self.win_player = None  # The player number (0 or 1) who has won the game
         self.move_log = []  # Initialize move history
 
     def get_piece_valid_moves(self, coord):
@@ -140,10 +142,10 @@ class Board:
             (2, 2): (+1, +1),  # Right Down
         }
 
-        def check_swap(selected_piece, target_piece):
+        def check_swap(start_piece, destination_piece):
             """Check if the piece can be swaps."""
-            return (selected_piece[0] in ["s", "a"]) and (
-                selected_piece != target_piece
+            return (start_piece[0] in ["s", "a"]) and (
+                start_piece != destination_piece
             )
 
         piece_exists = (
@@ -239,7 +241,7 @@ class Board:
         """
         pass
 
-    def make_move(self, start_position, end_position):
+    def make_move(self, start_position, destination_position):
         """
         Make a move on the board.
 
@@ -247,54 +249,58 @@ class Board:
         ----------
         start_position : tuple of int
             The starting position of the piece (row, col).
-        end_position : tuple of int
+        destination_position : tuple of int
             The destination position (row, col).
 
         Returns
         -------
         bool
             True if the move is valid and made, False otherwise.
-        bool
-            True if the current player has won the game after this move, False otherwise.
         """
         # Check if the start position has the player piece, and end position is valid
+        if self.is_win:
+            return False
         if self.board[start_position] == "n":
-            return False, False
-        if not self.get_piece_valid_moves(start_position)[1][end_position]:
-            return False, False
+            return False
+        if not self.get_piece_valid_moves(start_position)[1][destination_position]:
+            return False
 
-        selected_piece = self.board[start_position]
-        target_piece = self.board[end_position]
-        self.move_log.append(
-            (start_position, end_position, selected_piece, target_piece)
-        )
+        start_piece = self.board[start_position]
+        destination_piece = self.board[destination_position]
         # Move the piece
-        if target_piece == "n":
-            self.board[end_position] = selected_piece
+        if destination_piece == "n":
+            action_type = "move"
+            self.board[destination_position] = start_piece
             self.board[start_position] = "n"
-        elif target_piece[1] == str(self.current_turn):
-            self.board[end_position] = selected_piece
-            self.board[start_position] = target_piece
+        elif destination_piece[1] == str(self.current_turn):
+            action_type = "swap"
+            self.board[destination_position] = start_piece
+            self.board[start_position] = destination_piece
         else:
-            self.board[end_position] = selected_piece
+            action_type = "capture"
+            self.board[destination_position] = start_piece
             self.board[start_position] = "n"
 
-        is_win = self.check_is_win(self.current_turn)
+        self.move_log.append(
+            (start_position, destination_position, start_piece, destination_piece, action_type)
+        )
+        self.is_win, self.win_player = self.check_is_win(self.current_turn)
         self.current_turn = 1 - self.current_turn  # Switch the turn
-        return True, is_win
+        return True
 
     def check_is_win(self, player):
         """
         Check if the specified player has won the game.
 
         A player wins if they have at least two pieces on the opponent's bottom line.
-        The top line for player 0 is row 7, and for player 1, it is row 0.
+        The bottom line for player 0 is row 7, and for player 1, it is row 0.
 
         Args:
             player (int): The player to check for a win condition. 0 or 1.
 
         Returns:
-            bool: True if the player has won, False otherwise.
+            tuple: A tuple containing a boolean and the player number.
+                (True, player) if the player has won, (False, None) otherwise.
         """
         counts = 0
         if player == 0:
@@ -307,8 +313,8 @@ class Board:
                 if piece[1] == str(player):
                     counts += 1
                 if counts == 2:
-                    return True
-        return False
+                    return True, player
+        return False, None
 
     def undo(self):
         """
@@ -319,14 +325,35 @@ class Board:
         bool
             True if the last move was successfully undone, False if there are no moves to undo.
         """
-        if len(self.move_log) != 0:
-            self.current_turn = 1 - self.current_turn
-            start_position, end_position, piece, target_piece = self.move_log.pop()
-            self.board[start_position] = piece
-            self.board[end_position] = target_piece
-            return True
-        else:
+        if len(self.move_log) == 0:
             return False
+
+        self.current_turn = 1 - self.current_turn
+        start_position, destination_position, start_piece, destination_piece, _ = self.move_log.pop()
+        self.board[start_position] = start_piece
+        self.board[destination_position] = destination_piece
+        self.is_win, self.win_player = False, None
+        return True
+
+    @property
+    def latest_move_details(self):
+        """
+        Retrieve the details of the most recent move.
+
+        Returns
+        -------
+        tuple
+            A tuple containing:
+            - tuple of int: The starting position of the piece (row, col).
+            - tuple of int: The destination position of the piece (row, col).
+            - str: The piece that was moved.
+            - str: The piece that was at the destination before the move (or 'n' if empty).
+            - str: The type of action performed ('move', 'swap', or 'capture').
+        """
+        if self.move_log:
+            return self.move_log[-1]
+        else:
+            return None, None, None, None, None
 
     def print_board(self):
         """
